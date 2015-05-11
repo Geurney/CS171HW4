@@ -7,15 +7,12 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
-import java.util.concurrent.BlockingQueue;
 
-import jdk.nashorn.internal.ir.RuntimeNode.Request;
 
 public class Site {
 	private CLIThread CLI;
@@ -44,7 +41,6 @@ public class Site {
 
 	private class CLIThread extends Thread {
 		Scanner sc = new Scanner(System.in);
-		BlockingQueue<String> resultQueue;
 
 		@Override
 		public void run() {
@@ -60,35 +56,63 @@ public class Site {
 						Q[i] = rand.nextInt(5) + 1;
 					quorum.add(Q[i]);
 				}
-				sendRequest(Q[0], Q[1], command);
-				List<String> result = new ArrayList<String>();
-				for (int i = 0; i < 3; i++) {
+				while (true) {
+					sendRequest(Q[0], Q[1], command);
+					// accept grant or fail message.
+					ServerSocket serverSocket;
 					try {
-						result.add(resultQueue.take());
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
+						InetAddress hostname = InetAddress.getByName(config
+								.get(siteID)[0]);
+						int port = Integer.parseInt(config.get(siteID)[1]);
+						serverSocket = new ServerSocket(port + 1, 5, hostname);
+					} catch (IOException e) {
 						e.printStackTrace();
+						return;
 					}
-				}
-				int fail_site = 0;
-				for (int i = 0; i < 3; i++) {
-					if (result.get(i).contains("FAIL")) {
-						fail_site = Integer
-								.parseInt(result.get(i).split("\"")[0]);
+					List<String> result = new ArrayList<String>();
+						Socket mysocket;
+						try {
+							// Wait for a client to connect (blocking)
+							mysocket = serverSocket.accept();
+						} catch (IOException e) {
+							e.printStackTrace();
+							continue;
+						}
+						BufferedReader in;
+						try {
+							in = new BufferedReader(new InputStreamReader(
+									mysocket.getInputStream()));
+						} catch (IOException e) {
+							e.printStackTrace();
+							continue;
+						}
+
+						// System.out.println("Server: Established connection with a client");
+
+						// Read event from client
+						String input;
+						String[] input_split = null;
+						try {
+							input = in.readLine();
+							input_split = input.split("\"");
+						} catch (IOException e) {
+							e.printStackTrace();
+							input = "UnknownEvent";
+						}
+
+						// System.out.println("Server: Received Event " +
+						// input);
+						String operation = input_split[1];
+						switch (operation) {
+						case "FAIL":
+							result.add(input);
+							break;
+
+						case "GRANT":
+							result.add(input);
+							break;
+						}
 					}
-				}
-				if (fail_site != 0) {
-					quorum.remove(fail_site);
-					for (int q : quorum)
-						sendRelease(q);
-					System.out
-							.println("The request is faild. Please try it again!");
-					break;
-				} else {
-					accessLog(Q[0], Q[1], command);
-					for (int q : quorum)
-						sendRelease(q);
-					System.out.println(command + " is finished!");
 				}
 			}
 		}
@@ -341,31 +365,12 @@ public class Site {
 						activeLock.add(input);
 						sendGrant(site);
 					} else {
-						if (activeLock.get(0).contains("WRITE")) 
 							SendFail(site);
-						else{
 							requestLock.add(input);
 						}
 					}
 					break;
 
-				case "FAIL":
-					try {
-						CLI.resultQueue.put(input);
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-					break;
-
-				case "GRANT":
-					try {
-						CLI.resultQueue.put(input);
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-					break;
 
 				}
 
@@ -376,7 +381,6 @@ public class Site {
 			Socket mysocket;
 			try {
 				mysocket = new Socket(config.get(Integer.parseInt(site))[0],
-						Integer.parseInt(config.get(Integer.parseInt(site))[0]));
 			} catch (IOException e) {
 				e.printStackTrace();
 				return;
@@ -402,7 +406,6 @@ public class Site {
 			Socket mysocket;
 			try {
 				mysocket = new Socket(config.get(Integer.parseInt(site))[0],
-						Integer.parseInt(config.get(Integer.parseInt(site))[0]));
 			} catch (IOException e) {
 				e.printStackTrace();
 				return;
