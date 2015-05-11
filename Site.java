@@ -57,7 +57,6 @@ public class Site {
 					quorum.add(Q[i]);
 				}
 				while (true) {
-					sendRequest(Q[0], Q[1], command);
 					// accept grant or fail message.
 					ServerSocket serverSocket;
 					try {
@@ -70,6 +69,9 @@ public class Site {
 						return;
 					}
 					List<String> result = new ArrayList<String>();
+					//send requests to quorum
+					sendRequest(Q[0], Q[1], command);
+					for(int i = 0;i<3;i++) {
 						Socket mysocket;
 						try {
 							// Wait for a client to connect (blocking)
@@ -113,7 +115,41 @@ public class Site {
 							break;
 						}
 					}
+
+					int fail_site = 0;
+					for (int i = 0; i < 3; i++) {
+						if (result.get(i).contains("FAIL")) {
+							fail_site = Integer.parseInt(result.get(i).split(
+									"\"")[0]);
+						}
+					}
+					if (fail_site != 0) {
+						quorum.remove(fail_site);
+						for (int q : quorum)
+							sendRelease(q);
+						System.out
+								.println("The request is faild. Send it again!");
+					} else {
+						accessLog(Q[0], Q[1], command);
+						for (int q : quorum)
+							sendRelease(q);
+						System.out.println(command + " is finished!");
+						try {
+							serverSocket.close();
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						break;
+					}
+					try {
+						serverSocket.close();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 				}
+				
 			}
 		}
 
@@ -365,12 +401,31 @@ public class Site {
 						activeLock.add(input);
 						sendGrant(site);
 					} else {
+						if (activeLock.get(0).contains("WRITE"))
 							SendFail(site);
+						else {
 							requestLock.add(input);
 						}
 					}
 					break;
 
+				// case "FAIL":
+				// try {
+				// CLI.resultQueue.put(input);
+				// } catch (InterruptedException e) {
+				// // TODO Auto-generated catch block
+				// e.printStackTrace();
+				// }
+				// break;
+				//
+				// case "GRANT":
+				// try {
+				// CLI.resultQueue.put(input);
+				// } catch (InterruptedException e) {
+				// // TODO Auto-generated catch block
+				// e.printStackTrace();
+				// }
+				// break;
 
 				}
 
@@ -381,6 +436,7 @@ public class Site {
 			Socket mysocket;
 			try {
 				mysocket = new Socket(config.get(Integer.parseInt(site))[0],
+						Integer.parseInt(config.get(Integer.parseInt(site))[1]+1));
 			} catch (IOException e) {
 				e.printStackTrace();
 				return;
@@ -406,6 +462,7 @@ public class Site {
 			Socket mysocket;
 			try {
 				mysocket = new Socket(config.get(Integer.parseInt(site))[0],
+						Integer.parseInt(config.get(Integer.parseInt(site))[1])+1);
 			} catch (IOException e) {
 				e.printStackTrace();
 				return;
