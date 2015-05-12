@@ -58,7 +58,8 @@ public class Site {
 						Q[i] = rand.nextInt(5) + 1;
 					quorum.add(Q[i]);
 				}
-				System.out.println("Form quorum: "+siteID+" "+Q[0]+" "+Q[1]);
+				System.out.println("Form quorum: " + siteID + " " + Q[0] + " "
+						+ Q[1]);
 				while (true) {
 					// accept grant or fail message.
 					ServerSocket serverSocket;
@@ -178,16 +179,22 @@ public class Site {
 			}
 			// Send event to log
 			StringBuilder sb = new StringBuilder();
-			String operation = command.substring(0, command.indexOf(' '));
+			String operation = null;
+			if (command.startsWith("R"))
+				operation = "READ";
+			else
+				operation = "APPEND";
 			sb.append("Site").append(siteID).append("\"").append(operation)
 					.append("\"").append(siteID).append("\'").append(Q1)
 					.append("\'").append(Q2).append("\"");
-			if (operation.startsWith("A"))
-				sb.append(command.substring(command.indexOf(' ') + 1,
-						command.length()));
+			if (operation.startsWith("A")) {
+				String msg = command.substring(command.indexOf(' ') + 1,
+						command.length());
+				sb.append(msg.substring(0, 140));
+			}
 			out.println(sb.toString());
 			String reply = null;
-			if (command.charAt(0) == 'R') {
+			if (command.startsWith("R")) {
 				// Wait for a reply from the log (blocking)
 				try {
 					reply = in.readLine();
@@ -391,7 +398,8 @@ public class Site {
 					break;
 
 				case "READ":
-					if (activeLock.get(0).contains("WRITE"))
+					if (!activeLock.isEmpty()
+							&& activeLock.get(0).contains("WRITE"))
 						SendFail(site);
 					else {
 						activeLock.add(input);
