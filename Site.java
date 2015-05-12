@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
-
 public class Site {
 	private CLIThread CLI;
 	private CommThread Comm;
@@ -35,17 +34,20 @@ public class Site {
 			e.printStackTrace();
 		}
 		this.siteID = Integer.parseInt(this.config.get(0)[0]);
-		CLI.start();
 		Comm.start();
+		System.out.println("Site " + this.siteID + " is running on "
+				+ this.config.get(7)[0] + " port: " + this.config.get(7)[1]);
+		CLI.start();
 	}
 
 	private class CLIThread extends Thread {
-		Scanner sc = new Scanner(System.in);
-
 		@Override
 		public void run() {
 			String command;
-			while ((command = sc.next()) != null) {
+			System.out.println("Please enter a command:");
+			Scanner sc = new Scanner(System.in);
+			while ((command = sc.nextLine()) != null) {
+				System.out.println("Command: " + command);
 				Random rand = new Random();
 				int[] Q = new int[2];
 				HashSet<Integer> quorum = new HashSet<Integer>();
@@ -56,6 +58,7 @@ public class Site {
 						Q[i] = rand.nextInt(5) + 1;
 					quorum.add(Q[i]);
 				}
+				System.out.println("Form quorum: "+siteID+" "+Q[0]+" "+Q[1]);
 				while (true) {
 					// accept grant or fail message.
 					ServerSocket serverSocket;
@@ -69,9 +72,9 @@ public class Site {
 						return;
 					}
 					List<String> result = new ArrayList<String>();
-					//send requests to quorum
+					// send requests to quorum
 					sendRequest(Q[0], Q[1], command);
-					for(int i = 0;i<3;i++) {
+					for (int i = 0; i < 3; i++) {
 						Socket mysocket;
 						try {
 							// Wait for a client to connect (blocking)
@@ -149,7 +152,7 @@ public class Site {
 						e.printStackTrace();
 					}
 				}
-				
+
 			}
 		}
 
@@ -435,8 +438,9 @@ public class Site {
 		private void SendFail(String site) {
 			Socket mysocket;
 			try {
-				mysocket = new Socket(config.get(Integer.parseInt(site))[0],
-						Integer.parseInt(config.get(Integer.parseInt(site))[1]+1));
+				mysocket = new Socket(
+						config.get(Integer.parseInt(site))[0],
+						Integer.parseInt(config.get(Integer.parseInt(site))[1] + 1));
 			} catch (IOException e) {
 				e.printStackTrace();
 				return;
@@ -461,8 +465,9 @@ public class Site {
 		private void sendGrant(String site) {
 			Socket mysocket;
 			try {
-				mysocket = new Socket(config.get(Integer.parseInt(site))[0],
-						Integer.parseInt(config.get(Integer.parseInt(site))[1])+1);
+				mysocket = new Socket(
+						config.get(Integer.parseInt(site))[0],
+						Integer.parseInt(config.get(Integer.parseInt(site))[1]) + 1);
 			} catch (IOException e) {
 				e.printStackTrace();
 				return;
