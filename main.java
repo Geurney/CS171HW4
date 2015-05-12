@@ -6,7 +6,7 @@ import java.util.ArrayList;
 
 public class main {
 	public static void main(String[] args) throws InterruptedException, IOException {
-		Site site = new Site(readFile("config5.txt"));
+		Site site = new Site(readFile("config.txt"));
 	}
 	
 	public static ArrayList<String[]> readFile(String fileName)

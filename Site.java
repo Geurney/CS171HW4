@@ -1,4 +1,6 @@
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -45,7 +47,8 @@ public class Site {
 		public void run() {
 			String command;
 			System.out.println("Please enter a command:");
-			Scanner sc = new Scanner(System.in);
+			Scanner sc = null;
+			sc = new Scanner(System.in);
 			while ((command = sc.nextLine()) != null) {
 				System.out.println("Command: " + command);
 				Random rand = new Random();
@@ -60,18 +63,20 @@ public class Site {
 				}
 				System.out.println("Form quorum: " + siteID + " " + Q[0] + " "
 						+ Q[1]);
+
+				// accept grant or fail message.
+				ServerSocket serverSocket;
+				try {
+					InetAddress hostname = InetAddress.getByName(config
+							.get(siteID)[0]);
+					int port = Integer.parseInt(config.get(siteID)[1]);
+					serverSocket = new ServerSocket(port + 1, 5, hostname);
+				} catch (IOException e) {
+					e.printStackTrace();
+					return;
+				}
+				
 				while (true) {
-					// accept grant or fail message.
-					ServerSocket serverSocket;
-					try {
-						InetAddress hostname = InetAddress.getByName(config
-								.get(siteID)[0]);
-						int port = Integer.parseInt(config.get(siteID)[1]);
-						serverSocket = new ServerSocket(port + 1, 5, hostname);
-					} catch (IOException e) {
-						e.printStackTrace();
-						return;
-					}
 					List<String> result = new ArrayList<String>();
 					// send requests to quorum
 					sendRequest(Q[0], Q[1], command);
@@ -133,25 +138,20 @@ public class Site {
 							sendRelease(q);
 						System.out
 								.println("The request is faild. Send it again!");
+						quorum.add(fail_site);
 					} else {
 						accessLog(Q[0], Q[1], command);
 						for (int q : quorum)
 							sendRelease(q);
 						System.out.println(command + " is finished!");
-						try {
-							serverSocket.close();
-						} catch (IOException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
 						break;
 					}
-					try {
-						serverSocket.close();
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
+				}
+				try {
+					serverSocket.close();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
 
 			}
@@ -190,7 +190,10 @@ public class Site {
 			if (operation.startsWith("A")) {
 				String msg = command.substring(command.indexOf(' ') + 1,
 						command.length());
-				sb.append(msg.substring(0, 140));
+				if (msg.length() > 140)
+					sb.append(msg.substring(0, 140));
+				else
+					sb.append(msg);
 			}
 			out.println(sb.toString());
 			String reply = null;
@@ -399,9 +402,10 @@ public class Site {
 
 				case "READ":
 					if (!activeLock.isEmpty()
-							&& activeLock.get(0).contains("WRITE"))
-						SendFail(site);
-					else {
+							&& activeLock.get(0).contains("WRITE")) {
+						System.out.println("READ fail");
+						sendFail(site);
+					} else {
 						activeLock.add(input);
 						sendGrant(site);
 					}
@@ -412,9 +416,10 @@ public class Site {
 						activeLock.add(input);
 						sendGrant(site);
 					} else {
-						if (activeLock.get(0).contains("WRITE"))
-							SendFail(site);
-						else {
+						if (activeLock.get(0).contains("WRITE")) {
+							System.out.println("WRITE fail");
+							sendFail(site);
+						} else {
 							requestLock.add(input);
 						}
 					}
@@ -443,12 +448,12 @@ public class Site {
 			}
 		}
 
-		private void SendFail(String site) {
+		private void sendFail(String site) {
 			Socket mysocket;
 			try {
 				mysocket = new Socket(
 						config.get(Integer.parseInt(site))[0],
-						Integer.parseInt(config.get(Integer.parseInt(site))[1] + 1));
+						Integer.parseInt(config.get(Integer.parseInt(site))[1]) + 1);
 			} catch (IOException e) {
 				e.printStackTrace();
 				return;
